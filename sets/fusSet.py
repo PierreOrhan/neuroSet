@@ -45,6 +45,9 @@ class fusSet():
         self.dic = {}
 
     def load(self,dir,v73=True,fillNone=False):
+        # dir: path to the directory
+        # v73: wether to use scipy.io.loadmat or mat73 for the loading
+        # fillNone: only load the key in each file
         # the dir should contain mat file with the following structure:
         # animal_session_slice.mat
         ls = np.array(os.listdir(dir))
@@ -64,11 +67,11 @@ class fusSet():
                 for sl in dic[a][sess].keys():
                     if fillNone:
                         if not v73:
-                            mat = scipy.io.loadmat(os.path.join(dir, a + "_" + sess + "_" + sl + ".mat"))
+                            mat = scipy.io.whosmat(os.path.join(dir, a + "_" + sess + "_" + sl + ".mat"))
                             dic[a][sess][sl] = {k: None for k in mat.keys()}
                             del mat
                         else:
-                            mat = scipy.io.loadmat(os.path.join(dir, a + "_" + sess + "_" + sl + ".mat"))
+                            mat = scipy.io.whosmat(os.path.join(dir, a + "_" + sess + "_" + sl + ".mat"))
                             dic[a][sess][sl] = {k: None for k in mat.keys()}
                             del mat
                     else:
@@ -79,7 +82,11 @@ class fusSet():
         self.dic = dic
         return None
 
+
+
     def load_frompathDic(self,path_dic,v73=True,fillNone=False):
+        ## load from a recursive dictionary of level [animals,sessions,slices]
+        # each element of the dictionary indicate what to load.
         dic = {a:None for a in path_dic.keys()}
         for a in path_dic.keys():
             dic[a] = {s:None for s in path_dic[a].keys()}
@@ -88,16 +95,16 @@ class fusSet():
                 for sl in path_dic[a][sess].keys():
                     if fillNone:
                         if not v73:
-                            mat = scipy.io.loadmat(path_dic[a][sess][sl])
+                            mat = scipy.io.loadmat(path_dic[a][sess][sl],simplify_cells=True)
                             dic[a][sess][sl] = {k: None for k in mat.keys()}
                             del mat
                         else:
-                            mat = scipy.io.loadmat(path_dic[a][sess][sl])
+                            mat = mat73.loadmat(path_dic[a][sess][sl])
                             dic[a][sess][sl] = {k: None for k in mat.keys()}
                             del mat
                     else:
                         if not v73:
-                            dic[a][sess][sl] = scipy.io.loadmat(path_dic[a][sess][sl])
+                            dic[a][sess][sl] = scipy.io.loadmat(path_dic[a][sess][sl],simplify_cells=True)
                         else:
                             dic[a][sess][sl] = mat73.loadmat(path_dic[a][sess][sl])
         self.dic = dic
@@ -105,6 +112,11 @@ class fusSet():
     def same_empty(self):
         return {a:{sess:{slice:{k:None for k in self.dic[a][sess][slice].keys()}
                   for slice in self.dic[a][sess].keys()} for sess in self.dic[a].keys()} for a in self.dic.keys()}
+
+    def same_key(self):
+        return fusSet.from_dic({a: {sess: {slice: {"key":[a,sess,slice]}
+                           for slice in self.dic[a][sess].keys()} for sess in self.dic[a].keys()} for a in
+                self.dic.keys()})
 
     @classmethod
     def from_dic(self,dic):
@@ -217,6 +229,11 @@ class fusSet():
     #For v2 #def par_yield(self):
     #parallel yielding
 
+    def save(self,path):
+        ## saving tool: iterate
+        keyset = self.same_key()
+        for dic,keys in zip(self,keyset):
+            scipy.io.savemat(os.path.join(path,keys[0]+"_"+keys[1]+"_"+keys[2]+".mat"))
 
 def to(inSet:fusSet,f,k):
     for b in inSet:
