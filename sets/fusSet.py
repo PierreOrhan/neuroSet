@@ -2,6 +2,7 @@ import numpy as np
 import os
 import scipy.io
 import mat73
+import hdf5storage
 
 def dic_get(dic,ks):
     if len(ks) <= 1:
@@ -44,41 +45,49 @@ class fusSet():
     def __init__(self):
         self.dic = {}
 
-    def load(self,dir,v73=True,fillNone=False):
+    def load(self,dir,v73=True,fillNone=False,subsets=None):
         # dir: path to the directory
         # v73: wether to use scipy.io.loadmat or mat73 for the loading
-        # fillNone: only load the key in each file
+        # fillNone: only load the key in each file --> only efficient if v73=False
         # the dir should contain mat file with the following structure:
+        # subsets: list of strings: subsets of file to load. Load all if None
         # animal_session_slice.mat
         ls = np.array(os.listdir(dir))
         animals = np.unique([l.split("_")[0] for l in ls])
         animals = animals[np.where([a!="param" for a in animals])[0]]
-        dic = {a:None for a in animals}
+        dic = {}
         for a in animals:
-            all_animal = np.array([l.split("_")[0] for l in ls])
-            ls_a = np.where([aa==a for aa in all_animal])[0]
-            sessions = np.unique([l.split("_")[1] for l in ls[ls_a]])
-            dic[a] = {s:None for s in sessions}
-            for sess in sessions:
-                all_sess = np.array([l.split("_")[1] for l in ls[ls_a]])
-                ls_s = np.where([asess==sess for asess in all_sess])[0]
-                slices = np.unique([l.split("_")[2] for l in ls[ls_a][ls_s]])
-                dic[a][sess] = {sl.split(".mat")[0]:None for sl in slices}
-                for sl in dic[a][sess].keys():
-                    if fillNone:
-                        if not v73:
-                            mat = scipy.io.whosmat(os.path.join(dir, a + "_" + sess + "_" + sl + ".mat"))
-                            dic[a][sess][sl] = {k: None for k in mat.keys()}
-                            del mat
-                        else:
-                            mat = scipy.io.whosmat(os.path.join(dir, a + "_" + sess + "_" + sl + ".mat"))
-                            dic[a][sess][sl] = {k: None for k in mat.keys()}
-                            del mat
-                    else:
-                        if not v73:
-                            dic[a][sess][sl] = scipy.io.loadmat(os.path.join(dir,a+"_"+sess+"_"+sl+".mat"))
-                        else:
-                            dic[a][sess][sl] = mat73.loadmat(os.path.join(dir, a + "_" + sess + "_" + sl + ".mat"))
+            if (subsets is None) or np.array([a in s for s in subsets]).any():
+                all_animal = np.array([l.split("_")[0] for l in ls])
+                ls_a = np.where([aa==a for aa in all_animal])[0]
+                sessions = np.unique([l.split("_")[1] for l in ls[ls_a]])
+                dic[a] = {}
+                for sess in sessions:
+                    if (subsets is None) or np.array([sess in s for s in subsets]).any():
+                        all_sess = np.array([l.split("_")[1] for l in ls[ls_a]])
+                        ls_s = np.where([asess==sess for asess in all_sess])[0]
+                        slices = np.unique([l.split("_")[2] for l in ls[ls_a][ls_s]])
+                        slices = [sl.split(".mat")[0] for sl in slices]
+                        # dic[a][sess] = {sl.split(".mat")[0]:None for sl in slices}
+                        dic[a][sess] = {}
+                        for sl in slices:
+                            if (subsets is None) or (a + "_" + sess + "_" + sl+".mat" in subsets):
+                                if fillNone:
+                                    if not v73:
+                                        mat = scipy.io.whosmat(os.path.join(dir, a + "_" + sess + "_" + sl + ".mat"),simplify_cells=True)
+                                        dic[a][sess][sl] = {k[0]: (k[1],k[2]) for k in mat}
+                                        del mat
+                                    else:
+                                        mat = hdf5storage.loadmat(os.path.join(dir, a + "_" + sess + "_" + sl + ".mat"))
+                                        # mat = mat73.loadmat(os.path.join(dir, a + "_" + sess + "_" + sl + ".mat"))
+                                        dic[a][sess][sl] = {k: None for k in mat.keys()}
+                                        del mat
+                                else:
+                                    if not v73:
+                                        dic[a][sess][sl] = scipy.io.loadmat(os.path.join(dir,a+"_"+sess+"_"+sl+".mat"),simplify_cells=True)
+                                    else:
+                                        # dic[a][sess][sl] = mat73.loadmat(os.path.join(dir, a + "_" + sess + "_" + sl + ".mat"))
+                                        dic[a][sess][sl]  = hdf5storage.loadmat(os.path.join(dir, a + "_" + sess + "_" + sl + ".mat"))
         self.dic = dic
         return None
 
@@ -94,20 +103,42 @@ class fusSet():
                 dic[a][sess] = {sl.split(".mat")[0]:None for sl in path_dic[a][sess].keys()}
                 for sl in path_dic[a][sess].keys():
                     if fillNone:
-                        if not v73:
-                            mat = scipy.io.loadmat(path_dic[a][sess][sl],simplify_cells=True)
-                            dic[a][sess][sl] = {k: None for k in mat.keys()}
+                        try:
+                            mat = scipy.io.whosmat(path_dic[a][sess][sl],simplify_cells=True)
+                            dic[a][sess][sl] = {k[0]: (k[1],k[2]) for k in mat}
                             del mat
-                        else:
-                            mat = mat73.loadmat(path_dic[a][sess][sl])
+                        except:
+                            #mat = mat73.loadmat(path_dic[a][sess][sl])
+                            mat = hdf5storage.loadmat(path_dic[a][sess][sl])
                             dic[a][sess][sl] = {k: None for k in mat.keys()}
                             del mat
                     else:
-                        if not v73:
+                        try:
                             dic[a][sess][sl] = scipy.io.loadmat(path_dic[a][sess][sl],simplify_cells=True)
-                        else:
-                            dic[a][sess][sl] = mat73.loadmat(path_dic[a][sess][sl])
+                        except:
+                            # mat = mat73.loadmat(path_dic[a][sess][sl])
+                            dic[a][sess][sl] = hdf5storage.loadmat(path_dic[a][sess][sl])
         self.dic = dic
+
+
+    def save(self,path,v73=True):
+        ## saving tool: iterate
+        keyset = self.same_key()
+        for dic,keys in zip(self,keyset):
+            if not v73:
+                scipy.io.savemat(os.path.join(path,keys["key"][0]+"_"+keys["key"][1]+"_"+keys["key"][2]+".mat"),dic)
+            else:
+                hdf5storage.savemat(
+                    os.path.join(path, keys["key"][0] + "_" + keys["key"][1] + "_" + keys["key"][2] + ".mat"), dic)
+
+
+    def get_file_list(self):
+        ## list all the putative file in a saving repository that would contain this fusset:
+        list_file = []
+        keyset = self.same_key()
+        for keys in keyset:
+            list_file+=[keys["key"][0]+"_"+keys["key"][1]+"_"+keys["key"][2]+".mat"]
+        return list_file
 
     def same_empty(self):
         return {a:{sess:{slice:{k:None for k in self.dic[a][sess][slice].keys()}
@@ -170,19 +201,23 @@ class fusSet():
                             if ks[2] == None or a in ks[2]:
                                 yield self.dic[a][sess][slice]
 
-    def merge_animal(self,k,n:str,fmerge,axis):
+    def merge_animal(self,ks,n:str,fmerge,axis):
         ## assumes a similar substructure across animals:
+        if type(ks)!=list:
+            ks = [ks]
+
         animals = list(self.dic.keys())
         sessions = list(self.dic[animals[0]].keys())
         slices = self.dic[animals[0]][sessions[0]].keys()
-        nDic = {n: {sess: {slice: {k: None} for slice in slices} for sess in sessions}}
+        nDic = {n: {sess: {slice: {k:None for k in ks} for slice in slices} for sess in sessions}}
         fset = fusSet.from_dic(nDic)
-        for sess in sessions:
-            for slice in slices:
-                to_stack = []
-                for a in animals:
-                    to_stack += [self.dic[a][sess][slice][k]]
-                fset[n, sess, slice, k] = fmerge(to_stack, axis=axis)
+        for k in ks:
+            for sess in sessions:
+                for slice in slices:
+                    to_stack = []
+                    for a in animals:
+                        to_stack += [self.dic[a][sess][slice][k]]
+                    fset[n, sess, slice, k] = fmerge(to_stack, axis=axis)
         return fset
     def merge_session(self,ks,n:str,fmerge,axis):
         #k: the final key to use and where to apply the merge, can be a list in which case
@@ -228,12 +263,6 @@ class fusSet():
 
     #For v2 #def par_yield(self):
     #parallel yielding
-
-    def save(self,path):
-        ## saving tool: iterate
-        keyset = self.same_key()
-        for dic,keys in zip(self,keyset):
-            scipy.io.savemat(os.path.join(path,keys[0]+"_"+keys[1]+"_"+keys[2]+".mat"))
 
 def to(inSet:fusSet,f,k):
     for b in inSet:
