@@ -273,3 +273,15 @@ def to_(inSet:fusSet,outSet:fusSet,f,k):
         bout[k] = f(bin[k])
     return outSet
 
+
+def fzip(*args):
+    ## zip multiple fset
+    # and check that the keys of the set are matching!
+    for sets_elem in zip(*[a.same_key() for a in args]):
+        for s in sets_elem:
+            try:
+                assert np.all(s["key"] == sets_elem[0]["key"])
+            except:
+                raise Exception("two fusSet do not output their file in the same order")
+    for sets in zip(*args):
+        yield  sets
