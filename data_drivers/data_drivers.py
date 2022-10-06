@@ -37,7 +37,7 @@ class hdf5_driver(data_driver):
             return dic
         return mat
     def save(self,path :str,leaf_data):
-        hdf5storage.savemat(path,leafdata)
+        hdf5storage.savemat(path,leaf_data)
 
     def append(self,path : str,leaf_data):
         raise Exception("can't append online with hdf5_driver")
