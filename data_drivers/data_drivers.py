@@ -48,28 +48,30 @@ class hdf5_driver(data_driver):
 
 import zarr as zr
 
-class zarr_driver():
-    ## This driver does not use the power of zarr array and is just used
-    # to save and load quickly the leaf data as if they were some numpy array
+class zarr_driver(data_driver):
+    # Uses the power of the zarr array to load without directly charging in memory the data
 
-    ## TODO: rethink this driver
     def __init__(self):
         pass
-
     def remove_extension(self,path : str):
         # directory like files...
-        pass
-
+        return path
     def load(self,path :str, fillNone: bool):
         if fillNone:
             # open the group
-            z = zr.open(path)
-            # outout empty_like:
-            z2 = z.empty_like()
-            return z
-
+            z = zr.open_group(path,mode="r")
+            z2 = zr.group()
+            for k in z.keys():
+                z2.array(k,[])
+            return z2
+        else:
+            return zr.open(path,mode="r")
     def save(self,path: str,leaf_data):
-        z = zr.open_group(path)
+        z = zr.open_group(path,mode="a")
         for k in leaf_data.keys():
-            z.array(path)
+            z.array(name = k,data = leaf_data[k])
 
+    def append(self,path:str,leaf_data):
+        z = zr.open_group(path,mode="a")
+        for k in leaf_data.keys():
+            z.array(name = k,data = leaf_data[k])

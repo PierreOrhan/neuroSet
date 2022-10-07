@@ -66,6 +66,30 @@ def fzip(*args):
     for sets in zip(*args):
         yield  sets
 
+def pzip(fzip1,fzip2):
+    # Provided two fziped or two nSet, we iterate across each
+    # and then iterate across the other
+    # returns a tuple composed of the two leafs
+    for k1 in fzip1:
+        for k2 in fzip2:
+            yield (k1,k2)
+
+
+def product_dicempty(nSet1,nSet2):
+    # returns an empty nSet that replaced the leaf of nSet1 with nSet2 initialized as an empty dic:
+    nSet2_emptydic = nSet2.same_emptydic()
+    newSet = nSet1.same_emptydic()
+    newSet.num_level = newSet.num_level-1 # will iterate just above the last level...
+    outSet = nSet1.same_emptydic()
+
+    for n,k in fzip(newSet,newSet.same_key()):
+        for lk in n.keys():
+            call_key = [[u] for u in k["key"]]+[lk]
+            outSet[call_key] = nSet2_emptydic.dic
+    outSet.num_level = nSet1.num_level + nSet2.num_level #+1 do compensate the previous removal
+    return outSet
+
+
 class nSet():
     ## the idea of a nSet is to construct nested dictionaries with precise meaning associated
     # to each level.
@@ -73,6 +97,7 @@ class nSet():
     def __init__(self,num_level : int = 0):
         self.dic = {}
         self.num_level = num_level
+        self.load_driver = None #to be defined...
 
     def load(self,dir,load_driver : data_driver,fillNone: bool = False,subsets=None):
         # dir: path to the directory
@@ -99,14 +124,14 @@ class nSet():
         # the dataset.
         assert np.unique([len(a) for a in splited_names]).shape[0] == 1
 
-        nb_level = len(splited_names[0])
+        self.num_level = len(splited_names[0])
 
         dic = {}
         for fname,key in zip(ls,splited_names):
             if not key[0] in dic.keys():
                 dic[key[0]] = {}
             sub_dic = dic[key[0]]
-            for level in np.arange(1,nb_level-1):
+            for level in np.arange(1,self.num_level-1):
                 if not key[level] in sub_dic.keys():
                     sub_dic[key[level]] = {}
                 sub_dic = sub_dic[key[level]]
@@ -142,16 +167,17 @@ class nSet():
         # append with no verification
         keyset = self.same_key()
         for leaf, keys in fzip(self, keyset):
-            n = _keys_to_name(keys)
+            n = _keys_to_name(keys["key"])
             target_path = os.path.join(path, n)
             self.load_driver.append(target_path, leaf)
 
     def append(self,path):
+
         # Appends to the nSet existing in path, the data in the leaf of this nSet
         # First verify that there is a nSet in the path
-        # and that the nSet share the same level
+        # and that the nSet share the same exact levels
         targetSet = nSet()
-        targetSet.load(path, load_driver= self.load_driver,fillNone=True)
+        targetSet.load(path, self.load_driver,fillNone=True)
 
         assert targetSet.num_level == self.num_level
         ## verify through fzip that we can iterate across both sets together...
@@ -162,10 +188,10 @@ class nSet():
 
 
     def append_sub(self,path):
-        # Same as append but it allows for this nSet to be a sub-nSet of the target
+        # Same as append but a bit less restrictive: it allows for this nSet to be a sub-nSet of the target
         # meaning that all file in this nSet should be in the target nSet, but the target could be bigger...
         targetSet = nSet()
-        targetSet.load(path, load_driver=self.load_driver, fillNone=True)
+        targetSet.load(path, self.load_driver, fillNone=True)
         assert targetSet.num_level == self.num_level
         fileTarget = targetSet.get_file_list()
         assert np.all([np.any([f==ftarget for ftarget in fileTarget]) for f in self.get_file_list()])
@@ -275,11 +301,15 @@ class nSet():
         ## Obtain a subset of the tree dictionary from a list
         # use the key None to ask for all elements in the list
         if type(k) == list or type(k) == tuple:
-            return nSet.from_dic(dic_iterate(self.dic, k),self.num_level)
+            newSet = nSet.from_dic(dic_iterate(self.dic, k),self.num_level)
+            newSet.load_driver = self.load_driver
+            return newSet
         else:
             if k == None:
                 return self
-            return nSet.from_dic({k: self.dic[k]},self.num_level)
+            newSet = nSet.from_dic({k: self.dic[k]},self.num_level)
+            newSet.load_driver = self.load_driver
+            return newSet
 
     def __setitem__(self, key, value):
         if type(key) == list or type(key) == tuple:
@@ -290,6 +320,9 @@ class nSet():
     ### class-method
     @classmethod
     def from_dic(self,dic,num_level):
+        # Instantiate a nSet from an existing dictionary,
+        # one should set the data_driver for future loading and saving.
+
         nS = nSet()
         nS.dic = dic
         nS.num_level = num_level

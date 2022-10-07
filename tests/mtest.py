@@ -23,4 +23,9 @@ for x in d2:
 
 e = d.get(["Rigotte","01","a","din"])
 
+### test the element seting:
+from sets.nSet import product_dicempty
+dp = product_dicempty(d,d)
+
+
 ## TODO: unit tests...
