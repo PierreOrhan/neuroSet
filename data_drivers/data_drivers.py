@@ -67,7 +67,7 @@ class zarr_driver(data_driver):
         else:
             return zr.open(path,mode="r")
     def save(self,path: str,leaf_data):
-        z = zr.open_group(path,mode="a")
+        z = zr.open_group(path,mode="w")
         for k in leaf_data.keys():
             z.array(name = k,data = leaf_data[k])
 

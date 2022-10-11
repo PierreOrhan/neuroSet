@@ -66,13 +66,13 @@ def fzip(*args):
     for sets in zip(*args):
         yield  sets
 
+from itertools import  product
 def pzip(fzip1,fzip2):
     # Provided two fziped or two nSet, we iterate across each
     # and then iterate across the other
     # returns a tuple composed of the two leafs
-    for k1 in fzip1:
-        for k2 in fzip2:
-            yield (k1,k2)
+    for k1,k2 in product(fzip1,fzip2):
+        yield (k1,k2)
 
 
 def product_dicempty(nSet1,nSet2):
@@ -126,17 +126,22 @@ class nSet():
 
         self.num_level = len(splited_names[0])
 
-        dic = {}
-        for fname,key in zip(ls,splited_names):
-            if not key[0] in dic.keys():
-                dic[key[0]] = {}
-            sub_dic = dic[key[0]]
-            for level in np.arange(1,self.num_level-1):
-                if not key[level] in sub_dic.keys():
-                    sub_dic[key[level]] = {}
-                sub_dic = sub_dic[key[level]]
-            # last level particularity: load the data
-            sub_dic[key[-1]] = self.load_driver.load(os.path.join(dir,fname),fillNone=fillNone)
+        if self.num_level>1:
+            dic = {}
+            for fname,key in zip(ls,splited_names):
+                if not key[0] in dic.keys():
+                    dic[key[0]] = {}
+                sub_dic = dic[key[0]]
+                for level in np.arange(1,self.num_level-1):
+                    if not key[level] in sub_dic.keys():
+                        sub_dic[key[level]] = {}
+                    sub_dic = sub_dic[key[level]]
+                # last level particularity: load the data
+                sub_dic[key[-1]] = self.load_driver.load(os.path.join(dir,fname),fillNone=fillNone)
+        elif self.num_level==1:
+            dic = {ls[k]: self.load_driver.load(os.path.join(dir,ls[k]),fillNone=fillNone) for k in range(len(ls))}
+        else:
+            raise Exception("can't load an empty directory in an nSet")
         self.dic = dic
         return None
 
@@ -159,7 +164,7 @@ class nSet():
         ## saving tool: iterate
         keyset = self.same_key()
         for leaf,keys in zip(self,keyset):
-            n = _keys_to_name(keys)
+            n = _keys_to_name(keys["key"])
             target_path = os.path.join(path, n)
             self.load_driver.save(target_path,leaf)
 
