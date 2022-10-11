@@ -295,7 +295,26 @@ class nSet():
         outNset.num_level = self.num_level
         return outNset
 
-
+    def remove_level(self,level):
+        # If a level has one element, this function allows to get rid of it
+        # the num_level is consequently decreased by one.
+        assert level<= self.num_level-1
+        if level==0:
+            assert  len(list(self.dic.keys()))==1
+            b = list(self.dic.keys())[0]
+            self.dic = {k:self.dic[b][k] for k in self.dic[b].keys()}
+            self.num_level -= 1
+            return self
+        else:
+            for subdic in _diciter_rec(self.dic, level):
+                assert len(list(subdic.keys()))==1
+                bs = list(subdic.keys())
+                new_dic = {k: subdic[bs[0]][k] for k in subdic[bs[0]].keys()}
+                subdic.pop(bs[0])
+                for k in new_dic.keys():
+                    subdic[k] = new_dic[k]
+            self.num_level -= 1
+            return self
 
     ### Some more complicated commands on the nSet:
 
