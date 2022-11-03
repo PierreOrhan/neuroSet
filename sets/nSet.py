@@ -306,13 +306,18 @@ class nSet():
             self.num_level -= 1
             return self
         else:
-            for subdic in _diciter_rec(self.dic, level):
-                assert len(list(subdic.keys()))==1
-                bs = list(subdic.keys())
-                new_dic = {k: subdic[bs[0]][k] for k in subdic[bs[0]].keys()}
-                subdic.pop(bs[0])
-                for k in new_dic.keys():
-                    subdic[k] = new_dic[k]
+            # for subdic in _diciter_rec(self.dic, level):
+            #     assert len(list(subdic.keys()))==1
+            #     bs = list(subdic.keys())
+            #     new_dic = {k: subdic[bs[0]][k] for k in subdic[bs[0]].keys()}
+            #     subdic.pop(bs[0])
+            #     for k in new_dic.keys():
+            #         subdic[k] = new_dic[k]
+            for subdic in _diciter_rec(self.dic, level-1):
+                assert np.all([len(list(subdic[k].keys()))==1 for k in subdic.keys()])
+                for k in subdic.keys():
+                    bs = list(subdic[k].keys())
+                    subdic[k] = subdic[k][bs[0]]
             self.num_level -= 1
             return self
 
@@ -341,6 +346,37 @@ class nSet():
         else:
             raise Exception(" not well written")
 
+    def leaf_filter(self,leaf_list):
+        # return a new nSet containing only the leaf present in leaf_list.
+        splited_names = np.array([a.split("_") for a in leaf_list])
+        assert np.all(np.any([a==f for f in self.get_file_list()]) for a in leaf_list)
+        # verify that all files have the same number of "_" parameters so that we have consistent level across
+        # the dataset.
+        assert np.unique([len(a) for a in splited_names]).shape[0] == 1
+        if self.num_level > 1:
+            dic = {}
+            for fname, key in zip(leaf_list, splited_names):
+                if not key[0] in dic.keys():
+                    dic[key[0]] = {}
+                sub_dic = dic[key[0]]
+                for level in np.arange(1, self.num_level - 1):
+                    if not key[level] in sub_dic.keys():
+                        sub_dic[key[level]] = {}
+                    sub_dic = sub_dic[key[level]]
+                # last level particularity: load the data
+                sub_dic[key[-1]] = self.get(key)
+        elif self.num_level == 1:
+            dic = {leaf_list[k]: self.get(splited_names[k]) for k in range(len(leaf_list))}
+        else:
+            raise Exception("can't load an empty directory in an nSet")
+        b = nSet()
+        b.num_level = self.num_level
+        b.dic = dic
+        return b
+
+
+
+
     ### class-method
     @classmethod
     def from_dic(self,dic,num_level):
@@ -351,3 +387,6 @@ class nSet():
         nS.dic = dic
         nS.num_level = num_level
         return nS
+
+
+
