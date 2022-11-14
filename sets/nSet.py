@@ -110,7 +110,7 @@ class nSet():
         # subsets: list of strings: subsets of file to load. Load all if None
         self.load_driver = load_driver
 
-        ldir = np.sort(os.listdir(dir))
+        ldir = os.listdir(dir)
         if type(subsets) != type(None):
             ls = np.array(subsets)
             # verify that the subsets_file exist in the directory
@@ -119,6 +119,7 @@ class nSet():
             return None # empty nSet
         else:
             ls = np.array([self.load_driver.remove_extension(l) for l in os.listdir(dir)])
+        ls = np.sort(ls)
         splited_names = np.array([a.split("_") for a in ls])
         # verify that all files have the same number of "_" parameters so that we have consistent level across
         # the dataset.
