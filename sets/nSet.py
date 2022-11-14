@@ -110,7 +110,7 @@ class nSet():
         # subsets: list of strings: subsets of file to load. Load all if None
         self.load_driver = load_driver
 
-        ldir = os.listdir(dir)
+        ldir = np.sort(os.listdir(dir))
         if type(subsets) != type(None):
             ls = np.array(subsets)
             # verify that the subsets_file exist in the directory
