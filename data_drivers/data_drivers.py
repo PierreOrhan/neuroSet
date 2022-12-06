@@ -72,6 +72,38 @@ class zarr_driver(data_driver):
             z.array(name = k,data = leaf_data[k])
 
     def append(self,path:str,leaf_data):
+        # Note this appending generate multiple arrays from the leaf_data into the existing zarr group
+        # and therefore do not append or store the result inside existing arrays
         z = zr.open_group(path,mode="a")
         for k in leaf_data.keys():
             z.array(name = k,data = leaf_data[k])
+
+
+import os
+
+class zarr_group_driver(data_driver):
+    # If a zarr group contains elements that are structured with the "_"
+    # format, this method allows to load them
+    # the leaf will contain only one element with name "data" (unless otherwise precised)
+
+    def __init__(self):
+        pass
+    def remove_extension(self,path : str):
+        # directory like files...
+        return path
+    def load(self,path :str, fillNone: bool,leaf_name:str = "data"):
+        group_dir = os.path.join(*[p for p in path.split("/")[:-1]])
+        if fillNone:
+            # open the group
+            z = zr.open_group(group_dir,mode="a")
+            z2 = zr.group()
+            z2.array(leaf_name,[])
+            return z2
+        else:
+            zg = zr.open_group(group_dir,mode="r")
+            return {leaf_name:zg[path.split("/")[-1]]}
+
+    def save(self,path: str,leaf_data):
+        raise Exception("not implemented error")
+    def append(self,path:str,leaf_data):
+        raise Exception("not implemented error")

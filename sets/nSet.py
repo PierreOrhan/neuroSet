@@ -77,7 +77,6 @@ def pzip(fzip1,fzip2):
 
 def product_dicempty(nSet1,nSet2):
     # returns an empty nSet that replaced the leaf of nSet1 with nSet2 initialized as an empty dic:
-    nSet2_emptydic = nSet2.same_emptydic()
     newSet = nSet1.same_emptydic()
     newSet.num_level = newSet.num_level-1 # will iterate just above the last level...
     outSet = nSet1.same_emptydic()
@@ -85,7 +84,7 @@ def product_dicempty(nSet1,nSet2):
     for n,k in fzip(newSet,newSet.same_key()):
         for lk in n.keys():
             call_key = [[u] for u in k["key"]]+[lk]
-            outSet[call_key] = nSet2_emptydic.dic
+            outSet[call_key] = nSet2.same_emptydic().dic
     outSet.num_level = nSet1.num_level + nSet2.num_level #+1 do compensate the previous removal
     return outSet
 
